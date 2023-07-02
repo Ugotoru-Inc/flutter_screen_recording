@@ -141,7 +141,11 @@ let screenSize = UIScreen.main.bounds
                         }
                     }
 
-
+                case .audioMic:
+                    if self.audioMicInput.isReadyForMoreMediaData {
+                        print("audioMic data added")
+                        self.audioMicInput.append(cmSampleBuffer)
+                    }
                 default:
                    print("not a video sample, so ignore");
                 }
@@ -190,7 +194,5 @@ let screenSize = UIScreen.main.bounds
                 }
             }
         }
-    
-}
-    
+    }
 }
