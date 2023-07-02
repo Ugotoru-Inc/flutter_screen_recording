@@ -12,6 +12,7 @@ var videoWriter : AVAssetWriter?
 
 var audioInput:AVAssetWriterInput!
 var videoWriterInput : AVAssetWriterInput?
+var audioMicInput: AVAssetWriterInput!
 var nameVideo: String = ""
 var recordAudio: Bool = false;
 var myResult: FlutterResult?
@@ -89,13 +90,21 @@ let screenSize = UIScreen.main.bounds
                 
                 audioInput = AVAssetWriterInput(mediaType: AVMediaType.audio, outputSettings: audioOutputSettings)
                 videoWriter?.add(audioInput)
-            
+
+                let audioSettings: [String:Any] = [AVFormatIDKey : kAudioFormatMPEG4AAC,
+                    AVNumberOfChannelsKey : 2,
+                    AVSampleRateKey : 44100.0,
+                    AVEncoderBitRateKey: 192000
+                ]
+
+                audioMicInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+                audioMicInput.expectsMediaDataInRealTime = true
+                videoWriter?.add(audioMicInput)
             }
 
-
-        //Create the asset writer input object whihc is actually used to write out the video
-         videoWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: videoSettings);
-         videoWriter?.add(videoWriterInput!);
+            //Create the asset writer input object whihc is actually used to write out the video
+            videoWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: videoSettings);
+            videoWriter?.add(videoWriterInput!);
             
         }
 
@@ -118,36 +127,38 @@ let screenSize = UIScreen.main.bounds
                     return;
                 }
 
-                switch rpSampleType {
-                case RPSampleBufferType.video:
-                    print("writing sample....");
-                    if self.videoWriter?.status == AVAssetWriter.Status.unknown {
+                DispatchQueue.main.async {
+                    switch rpSampleType {
+                    case RPSampleBufferType.video:
+                        print("writing sample....");
+                        if self.videoWriter?.status == AVAssetWriter.Status.unknown {
 
-                        if (( self.videoWriter?.startWriting ) != nil) {
-                            print("Starting writing");
-                            self.myResult!(true)
-                            self.videoWriter?.startWriting()
-                            self.videoWriter?.startSession(atSourceTime:  CMSampleBufferGetPresentationTimeStamp(cmSampleBuffer))
-                        }
-                    }
-
-                    if self.videoWriter?.status == AVAssetWriter.Status.writing {
-                        if (self.videoWriterInput?.isReadyForMoreMediaData == true) {
-                            print("Writting a sample");
-                            if  self.videoWriterInput?.append(cmSampleBuffer) == false {
-                                print(" we have a problem writing video")
-                                self.myResult!(false)
+                            if (( self.videoWriter?.startWriting ) != nil) {
+                                print("Starting writing");
+                                self.myResult!(true)
+                                self.videoWriter?.startWriting()
+                                self.videoWriter?.startSession(atSourceTime:  CMSampleBufferGetPresentationTimeStamp(cmSampleBuffer))
                             }
                         }
-                    }
 
-                case .audioMic:
-                    if self.audioMicInput.isReadyForMoreMediaData {
-                        print("audioMic data added")
-                        self.audioMicInput.append(cmSampleBuffer)
+                        if self.videoWriter?.status == AVAssetWriter.Status.writing {
+                            if (self.videoWriterInput?.isReadyForMoreMediaData == true) {
+                                print("Writting a sample");
+                                if  self.videoWriterInput?.append(cmSampleBuffer) == false {
+                                    print(" we have a problem writing video")
+                                    self.myResult!(false)
+                                }
+                            }
+                        }
+
+                    case .audioMic:
+                        if self.audioMicInput.isReadyForMoreMediaData {
+                            print("audioMic data added")
+                            self.audioMicInput.append(cmSampleBuffer)
+                        }
+                    default:
+                    print("not a video sample, so ignore");
                     }
-                default:
-                   print("not a video sample, so ignore");
                 }
             } ){(error) in
                         guard error == nil else {
